@@ -1,0 +1,10 @@
+- hosts:
+    - xpaste_practicum
+  gather_facts: no
+  strategy: mitogen_linear
+  roles:
+   - common
+   - pg
+   - nginx
+   - app
+

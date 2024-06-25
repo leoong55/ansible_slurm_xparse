@@ -1,0 +1,13 @@
+[Unit]
+Description=xpaste_practicum
+After=network-online.target postgresql.service
+ 
+[Service]
+Type=simple
+EnvironmentFile=/app/secret/env
+WorkingDirectory=/app
+ExecStart=/bin/bash -lc 'bundle exec rake db:migrate && bundle exec puma -b unix:///var/run/puma.sock -e $RAILS_ENV config.ru'
+Restart=on-failure
+ 
+[Install]
+WantedBy=multi-user.target

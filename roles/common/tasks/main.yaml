@@ -1,0 +1,30 @@
+---
+
+- name: Change mode SELINUX to permissive
+  selinux: 
+    state: disabled 
+    policy: targeted
+  ignore_errors: true
+
+- name: Stop and disable firewalld.service
+  systemd: 
+    name: firewalld.service
+    state: stopped
+    enabled: no
+  ignore_errors: true
+
+- name: Upgrade system
+  yum: 
+    name: "*"
+    state: latest
+
+- name: Install main dependency
+  yum: 
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - git
+    - curl
+
+- name: Change hostname (FQDN)
+  shell: hostnamectl set-hostname {{ inventory_hostname }} --static

@@ -1,0 +1,71 @@
+---
+
+- name: Install packages for deploy PostgreSQL
+  yum:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - python-psycopg2
+    - postgresql-server
+    - postgresql-devel
+
+- name: Change shell postgres user
+  user:
+    name: postgres
+    shell: /bin/bash
+
+- name: Stop postgresql.service
+  service:
+    name: postgresql.service
+    state: stopped
+  ignore_errors: true
+
+- name: Remove default DB 
+  file:
+    path: /var/lib/pgsql/data
+    state: absent
+
+- name: Init new DB
+  shell: /usr/bin/initdb -D /var/lib/pgsql/data
+  become: True
+  become_user: postgres
+
+- name: Create postgresql.conf for PostgreSQL
+  template:
+    src: postgresql.conf.j2
+    dest: /var/lib/pgsql/data/postgresql.conf
+    owner: postgres
+    group: postgres
+    mode: 0600
+
+- name: Start and enable Postgres service
+  systemd:
+    name: postgresql.service
+    state: started
+    enabled: yes
+
+
+- name: Wait for port 5432 to become open on the host
+  wait_for:
+    port: "{{ DB_PORT }}"
+    host: 127.0.0.1
+    state: started
+    timeout: 120
+    delay: 1
+  ignore_errors: false
+
+- name: Create user for app
+  postgresql_user:
+    name: "{{ DB_USER }}"
+    password: "{{ DB_PASSWORD }}"
+    role_attr_flags: CREATEDB
+    state: present
+  become: True
+  become_user: postgres
+
+- name: Create PostgreSQL database
+  postgresql_db:
+    name: "{{ DB_NAME }}"
+    encoding: UTF8
+    owner: "{{ DB_USER }}"
+    state: present 

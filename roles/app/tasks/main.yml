@@ -1,0 +1,105 @@
+- name: Create main directory for app
+  file:
+    path: /app
+    owner: root
+    group: root
+    mode: '0775'
+    state: directory
+
+- name: Copy App
+  copy:
+    src: "{{playbook_dir}}/files/app/"
+    dest: /app/
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Create directory for secret
+  file:
+    path: /app/secret
+    owner: root
+    group: root
+    mode: '0775'
+    state: directory
+
+- name: Copy secret file
+  template:
+    src: secret.j2
+    dest: "/app/secret/env"
+    owner: root
+    group: root
+    mode: 0700
+
+- name: Install depencies for app
+  yum: 
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - libxml2-devel
+
+- name: Copy Ruby Install Script
+  copy:
+    src: "{{playbook_dir}}/files/scripts/install-ruby.sh"
+    dest: /tmp/install-ruby.sh
+    owner: root
+    group: root
+    mode: '755'
+
+- name: Run Ruby Install script
+  shell: /tmp/install-ruby.sh
+  become: yes
+  ignore_errors: true
+
+- name: Delete Ruby Install script
+  file:
+    path: /tmp/install-ruby.sh
+    state: absent
+
+- name: Install Bundler version 2.3.27 and Nokogiri version 1.8.2
+  gem:
+    name: "{{ item.name }}"
+    version: "{{ item.version }}"
+  with_items:
+  - { name: "bundler", version: 2.3.27 }
+  - { name: "nokogiri", version: 1.8.2 }
+
+- name: Download node js
+  shell: curl -sL https://rpm.nodesource.com/setup_14.x | bash
+
+- name: Install node js
+  yum: 
+    name: nodejs
+    state: present
+
+- name: Set bundle config for Nokogiri and install gems
+  shell: |
+    bundle config build.nokogiri --use-system-libraries
+    bundle install --no-cache --without development
+  args:
+    chdir: /app
+
+- name: Copy app service file
+  template:
+    src: app.service.j2
+    dest: "/etc/systemd/system/app.service"
+    owner: root
+    group: root
+    mode: 0700
+
+- name: Enable and start app
+  systemd:
+    name: "app"
+    state: "started"
+    enabled: true
+    daemon_reload: true
+
+- name: Check App start correct
+  uri:
+    url: http://176.107.161.84/
+    method: GET
+  register: response
+
+- fail:
+    msg: "Web Apllication dont work"
+  when: response.status != 200
+

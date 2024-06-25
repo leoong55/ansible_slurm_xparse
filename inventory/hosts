@@ -1,0 +1,11 @@
+
+---
+all:
+  children:
+    xpaste_practicum:
+      hosts:
+        app:
+          ansible_ssh_host: 176.107.161.84
+
+         
+        
